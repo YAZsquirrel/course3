@@ -1,0 +1,29 @@
+
+4
+
+-100 100
+-100 100 
+-100	 0
+
+10 10 5
+
+===================
+un // test
+
+x1 y1 z1  \ size of environment by opposite vertexes
+x2 y2	z2  /  
+xh yh zh    -  steps   
+
+wells_num
+x y
+h1 h2 - perforation height
+v		- perforation speed (+ = outtake (vsos))
+rad	- well radius
+. \
+.  | wells_num - 1
+. /
+r		- radius of concentration
+n		- num of knots on radius
+k		- concentration (0 - 1)
+
+===================

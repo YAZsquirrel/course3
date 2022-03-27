@@ -1,0 +1,22 @@
+
+
+======================
+comps_num
+k				\
+proportion  /
+. \
+.  | comps_num 
+. /
+
+k = 0 - oil, 1 - water, //2 - gas//
+
+phases_num
+y_top				 \
+comp_num			  |
+oil_over_water   |
+viscocity		  |
+penetrability	 /
+. \
+.  |  phases_num - 1
+. /
+======================
