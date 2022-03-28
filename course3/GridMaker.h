@@ -3,7 +3,7 @@
 #include <set>
 #include <map>
 #include <list>
-#include "Filtration.h"
+//#include "Filtration.h"
 typedef double real;
 
 namespace mesh_comps
@@ -54,7 +54,7 @@ namespace mesh_comps
        void GenerateMesh(); //
 
        private: 
-       int xn, yn, zn;
+       int xn = 0, yn = 0, zn = 0;
        std::vector<real> layers;
        knot env_corner1, env_corner2, step;
        struct well_info

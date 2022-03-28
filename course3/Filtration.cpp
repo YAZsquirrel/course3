@@ -1,15 +1,15 @@
 #include "Filtration.h"
-#include "GridMaker.h"
-#include <fstream>
+
 using namespace mesh_comps;
-using namespace filtration;
+//using namespace filtration;
 
 namespace filtration {
 
-	Mesh* mesh = new Mesh();
 
-	void StartMakingMesh()
+
+	void Filtration::StartMakingMesh()
 	{
+		mesh = new Mesh();
 		std::ifstream f_filtr("FiltrParams.txt");
 		int comps_num;
 		f_filtr >> comps_num;
@@ -33,14 +33,15 @@ namespace filtration {
 			int comp_num;
 			f_filtr >> heights[i] >> comp_num >> ph.saturation >> ph.viscosity >> ph.penetrability;
 			ph.compsInPhase = comps[comp_num];
+			//for (int j = 0; j < comp_num; j++)
+			//{
+			//	ph.compsInPhase[j].n
+			//}
 			phases.push_back(ph);
 		}
 
-
-
 		mesh->set_layers(heights, phases_num);
 		delete[] heights;
-
 
 		mesh->GenerateMesh();
 	}

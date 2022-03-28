@@ -101,12 +101,12 @@ namespace mesh_comps
                int well_area_x = ceil(2 * w_info.conc_rad / step.x),
                    well_area_y = ceil(2 * w_info.conc_rad / step.y); // +1
                bool x1 = true, y1 = true;
-               int rays = 2 * (well_area_y + well_area_x + 2);
+               int rays = 2 * (well_area_y + well_area_x);
 
                std::vector<int> inwell_inds;
                inwell_inds.reserve(rays + 4);
 
-               for (int kn = 0; kn < knots.size() && (x1 || y1) && ( w->x + 2. * step.x < knots[kn]->x || w->y + 2. * step.y < knots[kn]->y); kn++)
+               for (int kn = 0; kn < knots.size() && (x1 || y1) && ( w->x + 2. * step.x > knots[kn]->x || w->y + 2. * step.y > knots[kn]->y); kn++)
                {
                   if (abs(knots[kn]->x - w->x) / abs(w->x) < 1e-7 && x1)
                   {
@@ -123,7 +123,7 @@ namespace mesh_comps
                }
 
                // sort clockwise
-               std::vector<int> *sorted_inds;
+               std::vector<int> *sorted_inds = new std::vector<int>;
                sorted_inds->reserve(inwell_inds.size());
                for (int iw = 0; iw < well_area_x + 1; iw++)
                   sorted_inds->push_back(inwell_inds[iw]);
