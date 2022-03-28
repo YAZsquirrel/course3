@@ -279,29 +279,27 @@ namespace mesh_comps
                break;
             }
 
-         //for (int i = 0; i < lower_faces.size(); i++)
-         //{
-         //   //delete[] upper_faces[i];
-         //   upper_faces.clear();
-         //   int *face = new int[8]{ lower_faces[i][0] + plain_size, lower_faces[i][1] + plain_size,
-         //                           lower_faces[i][2] + plain_size, lower_faces[i][3] + plain_size };
-         //   upper_faces.push_back(face);
-         //}
-         //for (int i = 0; i < lower_faces.size(); i++)
-         //{
-         //   fhexas << lower_faces[i][0] << " " << lower_faces[i][1] << " " << lower_faces[i][2] << " " << lower_faces[i][3]
-         //          << " " << upper_faces[i][0] << " " << upper_faces[i][1]
-         //          << " " << upper_faces[i][2] << " " << upper_faces[i][3] << '\n';
-         //
-         //   int* face = new int[4]{ upper_faces[i][0], upper_faces[i][1],
-         //                           upper_faces[i][2], upper_faces[i][3]};
-         //
-         //   delete[] lower_faces[i];
-         //   lower_faces.clear();
-         //   lower_faces.push_back(face);
-         //}
+         for (int i = 0; i < lower_faces.size(); i++)
+         {
+            //delete[] upper_faces[i];
+            upper_faces.clear();
+            int *face = new int[4]{ lower_faces[i][0] + plain_size, lower_faces[i][1] + plain_size,
+                                    lower_faces[i][2] + plain_size, lower_faces[i][3] + plain_size };
+            upper_faces.push_back(face);
+         }
+         for (int i = 0; i < lower_faces.size(); i++)
+         {
+            fhexas << lower_faces[i][0] << " " << lower_faces[i][1] << " " << lower_faces[i][2] << " " << lower_faces[i][3]
+                   << " " << upper_faces[i][0] << " " << upper_faces[i][1]
+                   << " " << upper_faces[i][2] << " " << upper_faces[i][3] << '\n';
 
+            int* face = new int[4]{ upper_faces[i][0], upper_faces[i][1],
+                                    upper_faces[i][2], upper_faces[i][3]};
 
+            delete[] lower_faces[i];
+            lower_faces.clear();
+            lower_faces.push_back(face);
+         }
       }
       fhexas.close();
    }
