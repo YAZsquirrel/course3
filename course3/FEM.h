@@ -1,11 +1,13 @@
 #pragma once
-//#include "Filtration.h"
+#include "Filtration.h"
+#include <cmath>
 #include <iostream>
 #include <functional>
 #include <list>
 #include "GridMaker.h"
 typedef double real;
-//using namespace filtration;
+
+using namespace filtration;
 using namespace mesh_comps;
 
 class FEM
@@ -45,6 +47,7 @@ class FEM
    real Jgrad_j[3];
    real gradj[3];
 
+   void WriteMatrix(Matrix* A);
    void MakeSparseFormat();
    void AddElement(Matrix *A, int knot_num[8], int i, int j, real elem);
    void AddLocal(Matrix* A, int knot_num[8], real localA[8][8], real coeff);
@@ -63,6 +66,7 @@ class FEM
    real scalar(real* v, real* u, int size);
    void MatxVec(real* v, Matrix* A, real* b);
    real* z, *r, *p, *ff, *x;
+   Filtration* filtr;
    Mesh* mesh;
    void SolveSLAE();
 

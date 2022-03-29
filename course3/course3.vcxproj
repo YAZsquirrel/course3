@@ -156,6 +156,7 @@
     <Text Include="FirstBounds.txt" />
     <Text Include="Knots.txt" />
     <Text Include="Hexahedrons.txt" />
+    <Text Include="matrix.txt" />
     <Text Include="Result.txt" />
     <Text Include="SecondBounds.txt" />
   </ItemGroup>

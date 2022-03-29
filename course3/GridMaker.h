@@ -31,7 +31,7 @@ namespace mesh_comps
    struct hexahedron
    {
       int knots_num[8];
-
+      real lam;
    };
 
    class Mesh
@@ -64,7 +64,7 @@ namespace mesh_comps
        } w_info;
 
        void GenerateKnots();
-       void FindAllHexas(int plain_size, int* well_inds, std::vector<int>** inwell_indecies);
+       void FindAllHexasAndBounds(int plain_size, int* well_inds, std::vector<int>** inwell_indecies, real* zs);
        //void 
    };
 

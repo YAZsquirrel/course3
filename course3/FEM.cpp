@@ -1,25 +1,32 @@
 ﻿#include "FEM.h"
 #include <fstream>
-#include <iostream>
 using namespace mesh_comps;
 
 FEM::FEM()
 {
 #pragma region input
-   mesh = new Mesh();
+   filtr = new Filtration();
+   filtr->Start();
+   mesh = filtr->mesh;
+
    std::ifstream fknots("Knots.txt");
    std::ifstream fhexas("Hexahedrons.txt");
    std::ifstream fbounds1("FirstBounds.txt");
    std::ifstream fbounds2("SecondBounds.txt");
-   std::ifstream fparams("Params.txt");
+   //std::ifstream fparams("Params.txt");
 
    mesh->hexas.clear();
    mesh->knots.clear();
 
    fknots >> num_of_knots;
    mesh->knots.reserve(num_of_knots);
+   
    for (int i = 0; i < num_of_knots; i++)
-      fknots >> mesh->knots[i]->x >> mesh->knots[i]->y >> mesh->knots[i]->z;
+   {
+      knot* k = new knot();
+      fknots >> k->x >> k->y >> k->z;
+      mesh->knots.push_back(k);
+   }
    fknots.close();
 
    hexahedron* hexa;
@@ -32,7 +39,21 @@ FEM::FEM()
       for (int k = 0; k < 8; k++)
       {
          fhexas >> num;
-         hexa->knots_num[k] = num - 1;
+         hexa->knots_num[k] = num;
+
+         //real lam;
+         int minp = -1;
+         real ph = 1e10;
+         for (int p = 0; p < filtr->phases.size(); p++)
+         {
+            if (filtr->phases[p].h > mesh->knots[hexa->knots_num[4]]->z)
+            {
+               ph = std::min(ph, filtr->phases[p].h);
+               if(ph == filtr->phases[p].h || minp != p)
+                  minp = p;      
+            } 
+         }
+         hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
       } 
    }
    fhexas.close();
@@ -46,9 +67,10 @@ FEM::FEM()
       for (int j = 0, number; j < 4; j++)
       {
          fbounds1 >> number;								
-         cond->knots_num[j] = number - 1;				
+         cond->knots_num[j] = number;				
          //cond->knots[i] = &knots[number - 1];	
       }
+      fbounds1 >> cond->value;
       bounds1.push_back(cond);
    }
    fbounds1.close();
@@ -62,14 +84,15 @@ FEM::FEM()
       for (int j = 0, number; j < 4; j++)
       {
          fbounds2 >> number;
-         cond->knots_num[j] = number - 1;
+         cond->knots_num[j] = number;
       }
+      fbounds2 >> cond->value;
       bounds2.push_back(cond);
    }
    fbounds2.close();
 
-   fparams >> un;
-   fparams.close();
+   //fparams >> un;
+   //fparams.close();
 #pragma endregion
 
    MakeSparseFormat();
@@ -284,8 +307,8 @@ void FEM::SolveElliptic()
    CreateSLAE();
    SolveSLAE();
    Output(out);
-
    out.close();
+   WriteMatrix(A);
 }
 
 void FEM::Output(std::ofstream& out)
@@ -294,9 +317,9 @@ void FEM::Output(std::ofstream& out)
    //out.precision(15);
    //std::cout.scientific;
    //std::cout.precision(15);
-   out.setf(std::ios::left);
+   out.setf(std::ios::right);
    out.width(15);
-   out << "\n| x";
+   out << "\n| x" << std::fixed;
    out.width(15);
    out << "| y";
    out.width(15);
@@ -309,7 +332,6 @@ void FEM::Output(std::ofstream& out)
 
    for (int i = 0; i < num_of_knots; i++)
    {
-      out.width(15);
       out << "|" << mesh->knots[i]->x;
       out.width(15);
       out << "|" << mesh->knots[i]->y;
@@ -341,7 +363,7 @@ void FEM::AddFirstBounds()
             if (A->jg[j] == cond->knots_num[i])
                A->u[j] = 0.;
       
-         b[cond->knots_num[i]] = ug(mesh->knots[cond->knots_num[i]]);  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
+         b[cond->knots_num[i]] = cond->value;  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
       }
    }
 }
@@ -383,8 +405,9 @@ void FEM::CreateA(hexahedron* hexa)
 {
    for (int i = 0; i < 8; i++ )
       for (int j = 0; j < 8; j++ )
-         localA[i][j] = localG[i][j] + localM[i][j];
-   AddLocal(A, hexa->knots_num, localA, 1);
+         AddElement(A, hexa->knots_num, i, j, localG[i][j] + localM[i][j]);
+   //      localA[i][j] = localG[i][j] + localM[i][j];
+   //AddLocal(A, hexa->knots_num, localA, 1);
 }
 
 void FEM::CreateM(hexahedron* hexa)
@@ -398,7 +421,7 @@ void FEM::CreateG(hexahedron* hexa)
 {
    for (int i = 0; i < 8; i++)
       for (int j = 0; j < 8; j++)
-         localG[i][j] = Integrate(Gij, i, j, hexa->knots_num);
+         localG[i][j] = hexa->lam * Integrate(Gij, i, j, hexa->knots_num);
 }
 
 void FEM::Createb(hexahedron* hexa) 
@@ -584,5 +607,37 @@ void FEM::calc_grad(int ij, int index, real ksi, real etta, real tetha)
          for (int i = 0; i < 3; i++)
             gradj[i] = d_phi(index, i, ksi, etta, tetha);
          break;
+   }
+}
+
+void FEM::WriteMatrix(Matrix* A)
+{
+   double** mat = new double* [num_of_knots] {};
+   for (int i = 0; i < num_of_knots; i++)
+   {
+      mat[i] = new double[num_of_knots] {};
+   }
+
+   for (int i = 0; i < num_of_knots; i++)
+   {
+      mat[i][i] = A->d[i];
+      for (int j = A->ig[i]; j < A->ig[i + 1]; j++)
+      {
+         mat[i][A->jg[j]] = A->l[j];
+         mat[A->jg[j]][i] = A->u[j];
+      }
+   }
+
+   std::ofstream out("matrix.txt");
+
+   for (int i = 0; i < num_of_knots; i++)
+   {
+      for (int j = 0; j < num_of_knots; j++)
+      {
+         out.setf(std::ios::left);
+         out.width(15);
+         out << mat[i][j];
+      }
+      out << "\n";
    }
 }

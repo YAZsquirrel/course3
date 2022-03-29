@@ -48,9 +48,8 @@ namespace mesh_comps
    void Mesh::GenerateKnots()
    {
       // env_corner1, env_corner2, step
-      std::ofstream bounds1("FirstBounds.txt");
-      std::ofstream bounds2("SecondBounds.txt");
       std::ofstream fknots("Knots.txt");
+      fknots.precision(15);
 
       xn = (int)((env_corner2.x - env_corner1.x) / step.x) + 1;
       yn = (int)((env_corner2.y - env_corner1.y) / step.y) + 1;
@@ -63,6 +62,7 @@ namespace mesh_comps
       knots.reserve(total_knots);
       real hx = step.x, hy = step.y, hz = step.z;
       bool is_near_well = false;
+      real *zs = new real[zn]{};
 
       real z = env_corner1.z;
       for (int k = 0; k < zn; k++)
@@ -72,9 +72,10 @@ namespace mesh_comps
             if (z + hz > layers[l] && z < layers[l])
             {
                z = layers[l];
-               /*k++;*/
+
                break;
             }
+         zs[k] = z;
 
          if (k == 0)
          {
@@ -173,8 +174,6 @@ namespace mesh_comps
                
             }
 
-            //total_knots *= zn;
-            //knots.resize(total_knots);
          }
          else
             for (int i = 0; i < plane_size; i++)
@@ -185,21 +184,31 @@ namespace mesh_comps
       for (int i = 0; i < knots.size(); i++)
          fknots << knots[i]->x << " " << knots[i]->y << " " << knots[i]->z << '\n';
       fknots.close();
-      FindAllHexas(plane_size, well_start_indecies, inwell_indecies);
+      FindAllHexasAndBounds(plane_size, well_start_indecies, inwell_indecies, zs);
 
       delete[] well_start_indecies;
    }
 
-   void Mesh::FindAllHexas(int plain_size, int* well_inds, std::vector<int>** inwell_inds)
+   void Mesh::FindAllHexasAndBounds(int plain_size, int* well_inds, std::vector<int>** inwell_inds, real* zs)
    {
       std::vector<int*> lower_faces;
       std::vector<int*> upper_faces;
+      std::vector<std::vector<int*>> lower_bound2_edges;
+
       std::ofstream fhexas("Hexahedrons.txt");
+
+      std::ofstream fbounds1("FirstBounds.txt");
+      std::ofstream fbounds2("SecondBounds.txt");
+      std::ifstream fFP("FiltrParams.txt");
+      lower_bound2_edges.reserve(w_info.wells.size());
+      for (int i = 0; i < w_info.wells.size(); i++)
+         lower_bound2_edges.reserve(inwell_inds[i]->size());
 
       lower_faces.reserve(2 * plain_size);
       upper_faces.reserve(2 * plain_size);
 
       bool inwell_prevx = false;
+      // add knots without well
       for (int i = 0, y = 0, x = 0; i < well_inds[0] && y < yn; i++, x++)
       {
          if (x > xn - 1)
@@ -209,101 +218,161 @@ namespace mesh_comps
          }
 
          int *face = new int[4]{};
-         //bool inwell = false;
          bool found = false;
-         //for (int iw = 0; iw < w_info.wells.size() && !inwell; iw++)
-         //   for (int iwi = 0; iwi < inwell_inds[iw]->size() && !inwell; i++)
-         //      if (inwell_inds[iw]->at(iwi) == i && inwell_inds[iw]->at(iwi) == i + 1)
-         //         inwell_prevx = inwell = true;
-         
+
          face[0] = i;
-         if (abs(knots[i]->x - knots[i + 1]->x) <= (step.x + 1e-10) && abs(knots[i]->y - knots[i + 1]->y) < 1e-10 )  // o -> o
+         if (abs(knots[i]->x - knots[i + 1]->x) <= (step.x + 1e-10) && abs(knots[i]->y - knots[i + 1]->y) < 1e-10)  // o -> o
+         {
             face[1] = i + 1;
          for (int j = 0; j < well_inds[0]; j++)
-            if (abs(knots[i]->y - knots[j]->y) <= (step.y + 1e-10) && abs(knots[i]->x - knots[j]->x) < 1e-10)
+            if (abs(knots[i]->y - knots[j]->y) <= (step.y + 1e-10) && abs(knots[i]->x - knots[j]->x) < 1e-10 && i < j)
             {  
                face[2] = j;
-               if (abs(knots[j]->x - knots[j + 1]->x) <= (step.x + 1e-10) && abs(knots[j]->y - knots[j + 1]->y) < 1e-10)
+               if (abs(knots[j]->x - knots[j + 1]->x) <= (step.x + 1e-10) && abs(knots[j]->y - knots[j + 1]->y) < 1e-10 && i < j)
                {
                   face[3] = j + 1;
                   found = true;
                   break;
                }
             }
-
+         }
          if (found)
             lower_faces.push_back(face);
       }
+
+      //add well knots
       for (int w = 0; w < w_info.wells.size(); w++)
       {
-         for (int i = well_inds[w], iw = 0; iw < inwell_inds[w]->size(); i += w_info.rad_knots, iw++) // r = inwell_inds[w]->size() - колво лучей, r * nr = колво в 
+         std::vector<int*> bound_edges_well;
+         for (int i = well_inds[w], iw = 0; iw < inwell_inds[w]->size() - 1; i += w_info.rad_knots, iw++) // r = inwell_inds[w]->size() - колво лучей, r * nr = колво в 
             for (int r = 0; r < w_info.rad_knots; r++)
             {
                int* face = new int[4]{};
                face[0] = i + r; face[1] = i + w_info.rad_knots + r;
-               if (r = w_info.rad_knots - 1)
-                  { face[2] = inwell_inds[w]->at(iw); face[3] = inwell_inds[w]->at(iw) + 1; }
-               else
+               if (r < w_info.rad_knots - 1)
                   { face[2] = i + r + 1; face[3] = i + r + 1 + w_info.rad_knots; }
+               else
+                  { face[2] = inwell_inds[w]->at(iw); face[3] = inwell_inds[w]->at(iw + 1); }
                lower_faces.push_back(face);
-            }
 
+               if (r == 0) bound_edges_well.push_back(new int[2]{face[0], face[1]});
+            }
          for (int r = 0; r < w_info.rad_knots; r++)
          {
             int* face = new int[4]{};
-            face[0] = well_inds[w] + w_info.rad_knots * (inwell_inds[w]->size() - 1) + r; face[1] = well_inds[w] + r;
-            if (r = w_info.rad_knots - 1)
+            face[0] = well_inds[w] + w_info.rad_knots * (inwell_inds[w]->size() - 1) + r; 
+            face[1] = well_inds[w] + r;
+            if (r < w_info.rad_knots - 1)
+            {
+               face[2] = well_inds[w] + w_info.rad_knots * (inwell_inds[w]->size() - 1) + r + 1; 
+               face[3] = well_inds[w] + r + 1;
+            }
+            else
             {
                face[2] = inwell_inds[w]->at(inwell_inds[w]->size() - 1); 
                face[3] = inwell_inds[w]->at(0);
             }
-            else
-            {
-               face[2] = well_inds[w] + w_info.rad_knots * (inwell_inds[w]->size() - 1) + r + 1; 
-               face[3] = well_inds[w] + w_info.rad_knots * inwell_inds[w]->size() + r + 1;
-            }
             lower_faces.push_back(face);
+            if (r == 0) bound_edges_well.push_back(new int[2]{ face[0], face[1] });
+         }
+
+         lower_bound2_edges.push_back(bound_edges_well);
+      }
+
+      std::vector<int*> side_bound1;
+      side_bound1.reserve(2 * (xn + yn - 2) * (zn - 1));
+
+      for (int i = 0; i < well_inds[0]; i++)
+         for (int j = i + 1; j < well_inds[0]; j++)
+         {
+            if ((abs(knots[i]->y - env_corner1.y) < 1e-10 || abs(knots[i]->y - env_corner2.y) < 1e-10) 
+                  && abs(knots[i]->x - knots[j]->x) < step.x + 1e-10 && abs(knots[i]->y - knots[j]->y) < 1e-10)
+               {side_bound1.push_back(new int[2]{i, j}); continue;}
+            if ((abs(knots[i]->x - env_corner1.x) < 1e-10 || abs(knots[i]->x - env_corner2.x) < 1e-10)
+               && abs(knots[i]->y - knots[j]->y) < step.y + 1e-10 && abs(knots[i]->x - knots[j]->x) <  1e-10)
+               {side_bound1.push_back(new int[2]{ i, j }); break;}
+         }
+
+      int plain_knot_size = plain_size;
+      fbounds1 << plain_size * 2 + 2 * (xn + yn - 2) * (zn - 1) << '\n';
+
+      plain_size = lower_faces.size();
+      fhexas << plain_size * (zn - 1) << '\n';
+      int size = 0;
+      for (int i = 0; i < w_info.wells.size(); i++)
+         size += lower_bound2_edges[i].size();
+
+      fbounds2 << w_info.wells.size() * size * (zn - 1) << '\n';
+      real P_plast;
+      fFP >> P_plast;
+      fFP.close();
+      for (int i = 0; i < plain_size; i++)
+      {
+         fbounds1 << lower_faces[i][0] << " " 
+                  << lower_faces[i][1] << " " 
+                  << lower_faces[i][2] << " " 
+                  << lower_faces[i][3] << " " 
+                  << P_plast << '\n';
+      }
+
+
+      // add knots on upper plains 
+      for (int k = 1; k < zn; k++)
+      {
+
+         for (int i = 0; i < lower_faces.size(); i++)
+         {
+            for (int j = 0; j < 4; j++)
+               fhexas << lower_faces[i][j] + plain_size * (k - 1) << " ";
+            fhexas << " ";
+            for (int j = 0; j < 4; j++)
+               fhexas << lower_faces[i][j] + plain_size * k << " ";
+            fhexas << '\n';
+
+            if (k == zn - 1)
+            {
+               for (int i = 0; i < plain_size; i++)
+               {
+                  fbounds1 << lower_faces[i][0] << " "
+                     << lower_faces[i][1] << " "
+                     << lower_faces[i][2] << " "
+                     << lower_faces[i][3] << " "
+                     << P_plast << '\n';
+               }
+            }
+         }
+
+         for (int j = 0; j < side_bound1.size(); j++)
+         {
+            fbounds1 << side_bound1[j][0] + plain_size * (k - 1) << " "
+               << side_bound1[j][1] + plain_size * (k - 1) << " "
+               << side_bound1[j][0] + plain_size * k << " "
+               << side_bound1[j][1] + plain_size * k << " "
+               << P_plast << '\n';
+         }
+
+         for (int i = 0; i < w_info.wells.size(); i++)
+         {
+            real v = 0.0;
+            real zmid = zs[k - 1] + (zs[k - 1] + zs[k]) / 2.;
+            if (w_info.wells[i].h1 < zmid && zmid < w_info.wells[i].h2)
+               v = w_info.wells[i].intake;
+
+            for (int j = 0; j < lower_bound2_edges[i].size(); j++)
+            {
+               int *edge = lower_bound2_edges[i][j];
+               fbounds2 << edge[0] + plain_size * (k - 1) << " " 
+                        << edge[1] + plain_size * (k - 1) << " "
+                        << edge[0] + plain_size * k << " "
+                        << edge[1] + plain_size * k << " "
+                        << v << '\n';
+            }
          }
       }
-      //for (int i = well_inds[w_info.wells.size() - 2]; i < well_inds[w_info.wells.size() - 1]; i++)
-      fhexas << plain_size * (zn - 1) << '\n';
-
-      for (int k = 0; k < zn - 1; k++)
-      {
-         real z = k * step.z;
-         for (int l = 0; l < layers.size(); l++)
-            if (z + step.z < layers[l] && z > layers[l])
-            {
-               z = layers[l];
-               //k++;
-               break;
-            }
-
-         //for (int i = 0; i < lower_faces.size(); i++)
-         //{
-         //   //delete[] upper_faces[i];
-         //   upper_faces.clear();
-         //   int *face = new int[8]{ lower_faces[i][0] + plain_size, lower_faces[i][1] + plain_size,
-         //                           lower_faces[i][2] + plain_size, lower_faces[i][3] + plain_size };
-         //   upper_faces.push_back(face);
-         //}
-         //for (int i = 0; i < lower_faces.size(); i++)
-         //{
-         //   fhexas << lower_faces[i][0] << " " << lower_faces[i][1] << " " << lower_faces[i][2] << " " << lower_faces[i][3]
-         //          << " " << upper_faces[i][0] << " " << upper_faces[i][1]
-         //          << " " << upper_faces[i][2] << " " << upper_faces[i][3] << '\n';
-         //
-         //   int* face = new int[4]{ upper_faces[i][0], upper_faces[i][1],
-         //                           upper_faces[i][2], upper_faces[i][3]};
-         //
-         //   delete[] lower_faces[i];
-         //   lower_faces.clear();
-         //   lower_faces.push_back(face);
-         //}
-
-
-      }
       fhexas.close();
+      fbounds1.close();
+      fbounds2.close();
+
    }
 
 }

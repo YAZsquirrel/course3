@@ -64,5 +64,8 @@
     <Text Include="EnvParams.txt">
       <Filter>Файлы ресурсов</Filter>
     </Text>
+    <Text Include="matrix.txt">
+      <Filter>Файлы ресурсов</Filter>
+    </Text>
   </ItemGroup>
 </Project>

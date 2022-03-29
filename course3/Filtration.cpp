@@ -5,13 +5,16 @@ using namespace mesh_comps;
 
 namespace filtration {
 
-
-
-	void Filtration::StartMakingMesh()
+	void Filtration::Start()
 	{
 		mesh = new Mesh();
 		std::ifstream f_filtr("FiltrParams.txt");
+		real trash;
 		int comps_num;
+		f_filtr >> trash;
+
+		f_filtr >> por.K >> por.Fi;
+
 		f_filtr >> comps_num;
 		for (int i = 0; i < comps_num; i++)
 		{
@@ -31,8 +34,9 @@ namespace filtration {
 		{
 			phase ph;
 			int comp_num;
-			f_filtr >> heights[i] >> comp_num >> ph.saturation >> ph.viscosity >> ph.penetrability;
-			ph.compsInPhase = comps[comp_num];
+			f_filtr >> heights[i] >> ph.oil_over_water >> ph.viscosity >> ph.penetrability;
+			ph.h = heights[i];
+			//ph.compsInPhase.push_back(); //comps[comp_num];
 			//for (int j = 0; j < comp_num; j++)
 			//{
 			//	ph.compsInPhase[j].n
