@@ -40,21 +40,24 @@ FEM::FEM()
       {
          fhexas >> num;
          hexa->knots_num[k] = num;
+      }
+      for (int k = 0; k < 8; k++)
+      {
 
          //real lam;
          int minp = -1;
          real ph = 1e10;
          for (int p = 0; p < filtr->phases.size(); p++)
          {
-            if (filtr->phases[p].h > mesh->knots[hexa->knots_num[4]]->z)
+            if (filtr->phases[p].h >= mesh->knots[hexa->knots_num[4]]->z)
             {
                ph = std::min(ph, filtr->phases[p].h);
-               if(ph == filtr->phases[p].h || minp != p)
-                  minp = p;      
-            } 
+               if (ph == filtr->phases[p].h || minp != p)
+                  minp = p;
+            }
          }
          hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
-      } 
+      }
    }
    fhexas.close();
 

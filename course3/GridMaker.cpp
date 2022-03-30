@@ -323,10 +323,10 @@ namespace mesh_comps
          for (int i = 0; i < lower_faces.size(); i++)
          {
             for (int j = 0; j < 4; j++)
-               fhexas << lower_faces[i][j] + plain_size * (k - 1) << " ";
+               fhexas << lower_faces[i][j] + plain_knot_size * (k - 1) << " ";
             fhexas << " ";
             for (int j = 0; j < 4; j++)
-               fhexas << lower_faces[i][j] + plain_size * k << " ";
+               fhexas << lower_faces[i][j] + plain_knot_size * k << " ";
             fhexas << '\n';
 
             if (k == zn - 1)
@@ -344,27 +344,27 @@ namespace mesh_comps
 
          for (int j = 0; j < side_bound1.size(); j++)
          {
-            fbounds1 << side_bound1[j][0] + plain_size * (k - 1) << " "
-               << side_bound1[j][1] + plain_size * (k - 1) << " "
-               << side_bound1[j][0] + plain_size * k << " "
-               << side_bound1[j][1] + plain_size * k << " "
+            fbounds1 << side_bound1[j][0] + plain_knot_size * (k - 1) << " "
+               << side_bound1[j][1] + plain_knot_size * (k - 1) << " "
+               << side_bound1[j][0] + plain_knot_size * k << " "
+               << side_bound1[j][1] + plain_knot_size * k << " "
                << P_plast << '\n';
          }
 
          for (int i = 0; i < w_info.wells.size(); i++)
          {
             real v = 0.0;
-            real zmid = zs[k - 1] + (zs[k - 1] + zs[k]) / 2.;
-            if (w_info.wells[i].h1 < zmid && zmid < w_info.wells[i].h2)
+            real zmid = (zs[k - 1] + zs[k]) / 2.;
+            if (w_info.wells[i].h2 < zmid && zmid < w_info.wells[i].h1)
                v = w_info.wells[i].intake;
 
             for (int j = 0; j < lower_bound2_edges[i].size(); j++)
             {
                int *edge = lower_bound2_edges[i][j];
-               fbounds2 << edge[0] + plain_size * (k - 1) << " " 
-                        << edge[1] + plain_size * (k - 1) << " "
-                        << edge[0] + plain_size * k << " "
-                        << edge[1] + plain_size * k << " "
+               fbounds2 << edge[0] + plain_knot_size * (k - 1) << " "
+                        << edge[1] + plain_knot_size * (k - 1) << " "
+                        << edge[0] + plain_knot_size * k << " "
+                        << edge[1] + plain_knot_size * k << " "
                         << v << '\n';
             }
          }
