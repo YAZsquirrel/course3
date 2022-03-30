@@ -37,6 +37,7 @@ class FEM
    //real gamma = 1, theta = 1, lambda = 1;
    int num_of_knots, num_of_FE, un;
 
+   real localM2d[4][4];
    real localM[8][8]; // 8*8
    real localG[8][8];
    real localA[8][8];
@@ -71,6 +72,7 @@ class FEM
    void SolveSLAE();
 
    real Integrate(const std::function<real(real, real, real, int, int, int[8])> f, int i, int j, int knot_num[8]);
+   real Integrate2D(const std::function<real(real, real, int, int, int[4])> f, int i, int j, int knot_num[4]);
    inline int mu(int index);
    inline int v(int index);
    inline int nu(int index);

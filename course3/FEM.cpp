@@ -5,9 +5,9 @@ using namespace mesh_comps;
 FEM::FEM()
 {
 #pragma region input
-   //filtr = new Filtration();
-   //filtr->Start();
-   mesh = new Mesh();//filtr->mesh;
+   filtr = new Filtration();
+   filtr->Start();
+   mesh = filtr->mesh;
 
    std::ifstream fknots("Knots.txt");
    std::ifstream fhexas("Hexahedrons.txt");
@@ -49,16 +49,16 @@ FEM::FEM()
          //real lam;
          int minp = -1;
          real ph = 1e10;
-//for (int p = 0; p < filtr->phases.size(); p++)
-//{
-//   if (filtr->phases[p].h >= mesh->knots[hexa->knots_num[4]]->z)
-//   {
-//      ph = std::min(ph, filtr->phases[p].h);
-//      if (ph == filtr->phases[p].h || minp != p)
-//         minp = p;
-//   }
-//}
-//hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
+         for (int p = 0; p < filtr->phases.size(); p++)
+         {
+            if (filtr->phases[p].h >= mesh->knots[hexa->knots_num[4]]->z)
+            {
+               ph = std::min(ph, filtr->phases[p].h);
+               if (ph == filtr->phases[p].h || minp != p)
+                  minp = p;
+            }
+         }
+         hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
       }
    }
    fhexas.close();
@@ -84,7 +84,6 @@ FEM::FEM()
    for (int i = 0; i < numOfBounds; i++)
    {
       bound* cond = new bound;
-      fbounds2 >> cond->value;
 
       for (int j = 0, number; j < 4; j++)
       {
@@ -96,8 +95,6 @@ FEM::FEM()
    }
    fbounds2.close();
 
-   //fparams >> un;
-   //fparams.close();
 #pragma endregion
 
    MakeSparseFormat();
@@ -120,38 +117,38 @@ FEM::FEM()
 
    Gij = [this](real ksi, real etta, real theta, int i, int j, int knot_num[8])
    {
-      for (int i = 0; i < 3; i++)
-         Jgrad_i[i] = Jgrad_j[i] = 0.;
+      for (int ip = 0; ip < 3; ip++)
+         Jgrad_i[ip] = Jgrad_j[ip] = 0.;
       
-      for (int i = 0; i < 3; i++)                                  // | dx/d(ksi)   | dy/d(ksi)   | dz/d(ksi)   |
-         for (int j = 0; j < 3; j++)                               // | dx/d(etta)  | dy/d(etta)  | dz/d(etta)  |
-            J[i][j] = prime_by_var(i, j, knot_num, ksi, etta, theta); // | dx/d(theta) | dy/d(theta) | dz/d(theta) |
+      for (int ip = 0; ip < 3; ip++)                                       // | dx/d(ksi)   | dy/d(ksi)   | dz/d(ksi)   |
+         for (int jp = 0; jp < 3; jp++)                                    // | dx/d(etta)  | dy/d(etta)  | dz/d(etta)  |
+            J[ip][jp] = prime_by_var(ip, jp, knot_num, ksi, etta, theta);  // | dx/d(theta) | dy/d(theta) | dz/d(theta) |
       
       // J^-1
-      for (int i = 0; i < 3; i++)
-         for (int j = 0; j < 3; j++)
+      for (int ip = 0; ip < 3; ip++)
+         for (int jp = 0; jp < 3; jp++)
          {
             real min[4]{};
             int k = 0;
             for (int im = 0; im < 3; im++)
                for (int jm = 0; jm < 3; jm++)
                {
-                  if (im != i && jm != j)
+                  if (im != ip && jm != jp)
                      min[k++] = J[im][jm];
                }
-            reversed_J[j][i] = ((i + j + 2) % 2 ? -1 : 1) * (min[0] * min[3] - min[1] * min[2]);
+            reversed_J[jp][ip] = ((ip + jp + 2) % 2 ? -1 : 1) * (min[0] * min[3] - min[1] * min[2]);
          }
       
       // grad(phi(ksi, etta, theta))
       calc_grad(1, i, ksi, etta, theta);
-      calc_grad(1, j, ksi, etta, theta); 
+      calc_grad(2, j, ksi, etta, theta); 
 
       // J^-1 * grad(phi)
-      for (int i = 0; i < 3; i++)
-         for (int j = 0; j < 3; j++)
+      for (int ip = 0; ip < 3; ip++)
+         for (int jp = 0; jp < 3; jp++)
          {
-            Jgrad_i[i] += reversed_J[i][j] * gradi[j];
-            Jgrad_j[i] += reversed_J[i][j] * gradj[j];
+            Jgrad_i[ip] += reversed_J[ip][jp] * gradi[jp];
+            Jgrad_j[ip] += reversed_J[ip][jp] * gradj[jp];
          }
       //TODO: diffuse component (lambda) nado dobavit' ???
       // 
@@ -159,8 +156,8 @@ FEM::FEM()
  
       // Jgrad_i^T * Jgrad_j
       real res = 0;
-      for (int i = 0; i < 3; i++)
-         res += Jgrad_i[i] * Jgrad_j[i];
+      for (int ip = 0; ip < 3; ip++)
+         res += Jgrad_i[ip] * Jgrad_j[ip];
      
       return res / det_J();
    };
@@ -242,6 +239,13 @@ void FEM::MakeSparseFormat()
       }
    }
 
+   //for (int i = 0; i < num_of_knots + 1; i++)
+   //   std::cout << A->ig[i] << " ";
+   //std::cout << '\n';
+   //for (int i = 0; i < listsize + 1; i++)
+   //   std::cout << A->jg[i] << " ";
+   //std::cout << '\n';
+
    delete[] listbeg;
    delete[] list1;
    delete[] list2;
@@ -254,21 +258,24 @@ void FEM::MakeSparseFormat()
 
 void FEM::AddElement(Matrix* A, int knot_num[8], int i, int j, real elem)
 {
+   bool found = false;
    if (i == j)
-      A->d[knot_num[i]] += elem;
+      A->d[i] += elem;
    else if (i < j)
    {
-      for (int i = A->ig[j]; i < A->ig[j + 1]; i++)
-         if (A->jg[i] == i) break;
-
-      A->u[i] += elem; // i-1?
+      int m;
+      for (m = A->ig[j]; m < A->ig[j + 1]; m++)
+         if (A->jg[m] == i) { found = true; break; }
+      if (found)
+         A->u[m] += elem; // i-1?
    }
    else
-   {
-      for (int i = A->ig[j]; i < A->ig[j + 1]; i++)
-         if (A->jg[i] == j) break;
-
-      A->l[i] += elem; // i-1??
+   {  
+      int n;
+      for (n = A->ig[i]; n < A->ig[i + 1]; n++)
+         if (A->jg[n] == j) { found = true; break; }
+      if (found)
+         A->l[n] += elem; // i-1??
    }
 
 }
@@ -277,7 +284,7 @@ void FEM::AddLocal(Matrix* A, int knot_num[8], real localA[8][8], real coeff)
 {
    int ibeg, iend, ind;
    for (int i = 0; i < 8; i++)
-      A->d[knot_num[i]] += coeff * localA[i][i];
+      A->d[knot_num[i]] += localA[i][i];
    for (int i = 0; i < 8; i++)
    {
       ibeg = A->ig[knot_num[i]];
@@ -292,8 +299,8 @@ void FEM::AddLocal(Matrix* A, int knot_num[8], real localA[8][8], real coeff)
             else
                iend = ind;
          }
-         A->l[ibeg] += coeff * localA[i][j];
-         A->u[ibeg] += coeff * localA[j][i];
+         A->l[ibeg] += localA[i][j];
+         A->u[ibeg] += localA[j][i];
          ibeg++;
       }
    }
@@ -310,10 +317,19 @@ void FEM::SolveElliptic()
 {
    std::ofstream out("Result.txt");
    CreateSLAE();
+
    SolveSLAE();
    Output(out);
    out.close();
-   WriteMatrix(A);
+
+   //real* check = new real[num_of_knots];
+   ////real* check1 = new real[num_of_knots];
+   ////for (int i = 0; i < num_of_knots; i++)
+   ////   check1[i] = 1.0;
+   //MatxVec(check, A, q);
+   //for (int i = 0; i < num_of_knots; i++)
+   //   std::cout << b[i] << " ";
+   //std::cout << '\n';
 }
 
 void FEM::GetSolutionOnPlane(real z)
@@ -383,7 +399,7 @@ void FEM::AddFirstBounds()
             if (A->jg[j] == cond->knots_num[i])
                A->u[j] = 0.;
       
-         b[cond->knots_num[i]] = cond->value = ug(mesh->knots[cond->knots_num[i]]);  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
+         b[cond->knots_num[i]] = cond->value;// = ug(mesh->knots[cond->knots_num[i]]);  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
       }
    }
 }
@@ -391,8 +407,41 @@ void FEM::AddFirstBounds()
 void FEM::AddSecondBounds()
 {  
    for (auto bound : bounds2)
+   {
+      
+      //real x1 = 0.0, x2 = 0.0, x3 = 0.0, x4 = 0.0,
+      //     y1 = 0.0, y2 = 0.0, y3 = 0.0, y4 = 0.0;
+      //real a0 = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1), 
+      //     a1 = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3), 
+      //     a2 = (x3 - x1) * (y4 - y2) - (y3 - y1) * (x4 - x2);
+      //real sg = -1; 
+      //   if (a0 > 0) sg = 1;
+      //localM2d[0][0] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[0][1] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[0][2] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[0][3] = sg * (2 * a0 + a1 + a2) / 72.;
+      //localM2d[1][0] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[1][1] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[1][2] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[1][3] = sg * (2 * a0 + a1 + a2) / 72.;
+      //localM2d[2][0] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[2][1] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[2][2] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[2][3] = sg * (2 * a0 + a1 + a2) / 72.;
+      //localM2d[3][0] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[3][1] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[3][2] = sg * (2 * a0 + a1 + a2) / 72.; localM2d[3][3] = sg * (2 * a0 + a1 + a2) / 72.;
+      real x1 = mesh->knots[bound->knots_num[1]]->x - mesh->knots[bound->knots_num[0]]->x,
+         y1 = mesh->knots[bound->knots_num[1]]->y - mesh->knots[bound->knots_num[0]]->y,
+         z1 = mesh->knots[bound->knots_num[1]]->z - mesh->knots[bound->knots_num[0]]->z;
+      real x2 = mesh->knots[bound->knots_num[2]]->x - mesh->knots[bound->knots_num[0]]->x,
+         y2 = mesh->knots[bound->knots_num[2]]->y - mesh->knots[bound->knots_num[0]]->y,
+         z2 = mesh->knots[bound->knots_num[2]]->z - mesh->knots[bound->knots_num[0]]->z;
+      real x3 = mesh->knots[bound->knots_num[1]]->x - mesh->knots[bound->knots_num[3]]->x,
+         y3 = mesh->knots[bound->knots_num[1]]->y - mesh->knots[bound->knots_num[3]]->y,
+         z3 = mesh->knots[bound->knots_num[1]]->z - mesh->knots[bound->knots_num[3]]->z;
+      real x4 = mesh->knots[bound->knots_num[2]]->x - mesh->knots[bound->knots_num[3]]->x,
+         y4 = mesh->knots[bound->knots_num[2]]->y - mesh->knots[bound->knots_num[3]]->y,
+         z4 = mesh->knots[bound->knots_num[2]]->z - mesh->knots[bound->knots_num[3]]->z;
+
+      real aa = sqrt(x1 * x1 + y1 * y1 + z1 * z1);   // k0 - k1
+      real ba= sqrt(x2 * x2 + y2 * y2 + z2 * z2);   // k0 - k2
+      real ca = sqrt(x3 * x3 + y3 * y3 + z3 * z3);   // k3 - k1
+      real da = sqrt(x4 * x4 + y4 * y4 + z4 * z4);   // k3 - k2
+      real area = .25 * sqrt((-aa + ba + ca + da) * (aa - ba + ca + da) * (aa + ba - ca + da) * (aa + ba + ca - da));
+      
       for (int i = 0; i < 4; i++)
-         b[bound->knots_num[i]] += bound->value;
+         b[bound->knots_num[i]] += bound->value * area / 4.;
+   }
 }
 
 void FEM::CreateSLAE()
@@ -405,29 +454,21 @@ void FEM::CreateSLAE()
       CreateM(hexa);
       CreateA(hexa);
       Createb(hexa);
-      AddSecondBounds();
    }
 
-   //real* check = new real[num_of_knots];
-   //real* check1 = new real[num_of_knots];
-   //for (int i = 0; i < num_of_knots; i++)
-   //   check1[i] = 1.0;
-   //MatxVec(check, A, check1);
-   //
-   //std::cout << check[13] << " " << b[13] << " " << check[13] - b[13] << "\n\n";
-   //std::cout << check[11] << " " << b[11] << " " << check[11] - b[11] << "\n\n";
-   //for (int i =0 ; i < num_of_knots; i++) std::cout << A->d[i] << "\n";
-
+   AddSecondBounds();
+   //for (int i =0 ; i < num_of_knots; i++) std::cout << b[i] << "\n";
    AddFirstBounds();
+   //WriteMatrix(A);
 }
 
 void FEM::CreateA(hexahedron* hexa)
 {
    for (int i = 0; i < 8; i++ )
       for (int j = 0; j < 8; j++ )
-         //AddElement(A, hexa->knots_num, i, j, localG[i][j] + localM[i][j]);
-         localA[i][j] = localG[i][j] + localM[i][j];
-   AddLocal(A, hexa->knots_num, localA, 1);
+         AddElement(A, hexa->knots_num, hexa->knots_num[i], hexa->knots_num[j], localG[i][j]);
+         //localA[i][j] = localG[i][j] + localM[i][j];
+   //AddLocal(A, hexa->knots_num, localA, 1);
 }
 
 void FEM::CreateM(hexahedron* hexa)
@@ -439,6 +480,7 @@ void FEM::CreateM(hexahedron* hexa)
 
 void FEM::CreateG(hexahedron* hexa)
 {
+   hexa->lam = 1.;
    for (int i = 0; i < 8; i++)
       for (int j = 0; j < 8; j++)
          localG[i][j] = hexa->lam * Integrate(Gij, i, j, hexa->knots_num);
@@ -611,8 +653,29 @@ real FEM::Integrate(const std::function<real(real, real, real, int, int, int[8])
    for (int ix = 0; ix < nKnot; ix++)
       for (int iy = 0; iy < nKnot; iy++)
          for (int iz = 0; iz < nKnot; iz++)
-            result += qj[ix] * qj[iy] * qj[iz] * (f(.5 + xj[ix] * .5, .5 + xj[iy] * .5, .5 + xj[iz] * .5, i + 1, j + 1, knot_nums));
+            result += qj[ix] * qj[iy] * qj[iz] * (f(.5 + xj[ix] * .5, .5 + xj[iy] * .5, .5 + xj[iz] * .5, i, j, knot_nums));
    return result / 8.; 
+}
+
+real FEM::Integrate2D(const std::function<real(real, real, int, int, int[4])> f, int i, int j, int knot_nums[4])
+{
+   const int nKnot = 3;//5; // Knots num
+
+   const real xj[nKnot]
+      = { .7745966692414833, 0., -.7745966692414833 }; // sqrt(0.6)
+      //= { -sqrt(5. + 2. * (sqrt(10. / 7.))) / 3., -sqrt(5. - 2. * (sqrt(10. / 7.))) / 3.,	// Scales
+      //           0. , sqrt(5. - 2. * (sqrt(10. / 7.))) / 3. , sqrt(5. + 2. * (sqrt(10. / 7.))) / 3. };
+
+   const real qj[nKnot]
+      = { .55555555555555555, .8888888888888888, .55555555555555555 };
+   //= { (322. - 13. * sqrt(70.)) / 900., (322. + 13. * sqrt(70.)) / 900., 128. / 225.,	// Weights
+   //               (322. + 13. * sqrt(70.)) / 900., (322. - 13. * sqrt(70.)) / 900. };
+
+   real result = 0.;
+   for (int ix = 0; ix < nKnot; ix++)
+      for (int iy = 0; iy < nKnot; iy++)
+            result += qj[ix] * qj[iy] * (f(.5 + xj[ix] * .5, .5 + xj[iy] * .5, i + 1, j + 1, knot_nums));
+   return result / 4.;
 }
 
 void FEM::calc_grad(int ij, int index, real ksi, real etta, real tetha)
