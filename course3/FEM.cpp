@@ -314,6 +314,21 @@ void FEM::SolveElliptic()
    WriteMatrix(A);
 }
 
+void FEM::GetSolutiononPlane(real z)
+{
+   std::ofstream zout("ResultZ.txt");
+
+   for (int i = 0; i < num_of_knots; i++)
+   {
+      if (abs(mesh->knots[i]->z - z) < 1e-10)
+         zout << mesh->knots[i]->x << " " 
+               << mesh->knots[i]->y << " "
+               //<< mesh->knots[i]->z << " "
+               << q[i] << '\n';
+   }
+
+}
+
 void FEM::Output(std::ofstream& out)
 {
    //out.scientific;

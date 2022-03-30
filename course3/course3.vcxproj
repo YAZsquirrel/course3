@@ -158,6 +158,7 @@
     <Text Include="Hexahedrons.txt" />
     <Text Include="matrix.txt" />
     <Text Include="Result.txt" />
+    <Text Include="ResultZ.txt" />
     <Text Include="SecondBounds.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

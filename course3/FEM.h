@@ -87,5 +87,6 @@ class FEM
    public:
    FEM();
    void SolveElliptic();
+   void GetSolutiononPlane(real z);
    void Output(std::ofstream &out);
 };

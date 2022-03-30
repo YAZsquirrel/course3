@@ -67,5 +67,8 @@
     <Text Include="matrix.txt">
       <Filter>Файлы ресурсов</Filter>
     </Text>
+    <Text Include="ResultZ.txt">
+      <Filter>Файлы ресурсов</Filter>
+    </Text>
   </ItemGroup>
 </Project>
