@@ -294,7 +294,7 @@ namespace mesh_comps
          }
 
       int plain_knot_size = plain_size;
-      fbounds1 << plain_size * 2 + 2 * (xn + yn - 2) * (zn - 1) << '\n';
+      fbounds1 << 2 * (xn + yn - 2) * (zn - 1) << '\n';
 
       plain_size = lower_faces.size();
       fhexas << plain_size * (zn - 1) << '\n';
@@ -302,17 +302,17 @@ namespace mesh_comps
       for (int i = 0; i < w_info.wells.size(); i++)
          size += lower_bound2_edges[i].size();
 
-      fbounds2 << w_info.wells.size() * size * (zn - 1) << '\n';
+      fbounds2 << w_info.wells.size() * size * (zn - 1) + plain_size * 2 << '\n';
       real P_plast;
       fFP >> P_plast;
       fFP.close();
       for (int i = 0; i < plain_size; i++)
       {
-         fbounds1 << lower_faces[i][0] << " " 
+         fbounds2 << lower_faces[i][0] << " " 
                   << lower_faces[i][1] << " " 
                   << lower_faces[i][2] << " " 
                   << lower_faces[i][3] << " " 
-                  << P_plast << '\n';
+                  << 0.0 << '\n';
       }
 
 
@@ -333,11 +333,11 @@ namespace mesh_comps
             {
                for (int i = 0; i < plain_size; i++)
                {
-                  fbounds1 << lower_faces[i][0] << " "
+                  fbounds2 << lower_faces[i][0] << " "
                      << lower_faces[i][1] << " "
                      << lower_faces[i][2] << " "
                      << lower_faces[i][3] << " "
-                     << P_plast << '\n';
+                     << .0 << '\n';
                }
             }
          }

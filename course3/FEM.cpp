@@ -5,15 +5,17 @@ using namespace mesh_comps;
 FEM::FEM()
 {
 #pragma region input
-   filtr = new Filtration();
-   filtr->Start();
-   mesh = filtr->mesh;
+   //filtr = new Filtration();
+   //filtr->Start();
+   mesh = new Mesh();//filtr->mesh;
 
    std::ifstream fknots("Knots.txt");
    std::ifstream fhexas("Hexahedrons.txt");
    std::ifstream fbounds1("FirstBounds.txt");
    std::ifstream fbounds2("SecondBounds.txt");
-   //std::ifstream fparams("Params.txt");
+   std::ifstream fparams("EnvParams.txt");
+   fparams >> un;
+   fparams.close();
 
    mesh->hexas.clear();
    mesh->knots.clear();
@@ -47,16 +49,16 @@ FEM::FEM()
          //real lam;
          int minp = -1;
          real ph = 1e10;
-         for (int p = 0; p < filtr->phases.size(); p++)
-         {
-            if (filtr->phases[p].h >= mesh->knots[hexa->knots_num[4]]->z)
-            {
-               ph = std::min(ph, filtr->phases[p].h);
-               if (ph == filtr->phases[p].h || minp != p)
-                  minp = p;
-            }
-         }
-         hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
+//for (int p = 0; p < filtr->phases.size(); p++)
+//{
+//   if (filtr->phases[p].h >= mesh->knots[hexa->knots_num[4]]->z)
+//   {
+//      ph = std::min(ph, filtr->phases[p].h);
+//      if (ph == filtr->phases[p].h || minp != p)
+//         minp = p;
+//   }
+//}
+//hexa->lam = filtr->por.K * filtr->phases[minp].penetrability / filtr->phases[minp].viscosity;
       }
    }
    fhexas.close();
@@ -285,8 +287,8 @@ void FEM::AddLocal(Matrix* A, int knot_num[8], real localA[8][8], real coeff)
          while (A->jg[ibeg] != knot_num[j])
          {
             ind = (ibeg + iend) / 2;
-            if (A->jg[ind] < knot_num[j])
-               ibeg = ind + 1;
+            if (A->jg[ind] <= knot_num[j])
+               ibeg = ind;
             else
                iend = ind;
          }
@@ -314,7 +316,7 @@ void FEM::SolveElliptic()
    WriteMatrix(A);
 }
 
-void FEM::GetSolutiononPlane(real z)
+void FEM::GetSolutionOnPlane(real z)
 {
    std::ofstream zout("ResultZ.txt");
 
@@ -324,7 +326,7 @@ void FEM::GetSolutiononPlane(real z)
          zout << mesh->knots[i]->x << " " 
                << mesh->knots[i]->y << " "
                //<< mesh->knots[i]->z << " "
-               << q[i] << '\n';
+               << q[i] / 101325.0 << '\n';
    }
 
 }
@@ -381,7 +383,7 @@ void FEM::AddFirstBounds()
             if (A->jg[j] == cond->knots_num[i])
                A->u[j] = 0.;
       
-         b[cond->knots_num[i]] = cond->value;  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
+         b[cond->knots_num[i]] = cond->value = ug(mesh->knots[cond->knots_num[i]]);  /// надо будет поменять, наверно, для неизвестных функций из таблицы/по функции
       }
    }
 }
@@ -403,6 +405,7 @@ void FEM::CreateSLAE()
       CreateM(hexa);
       CreateA(hexa);
       Createb(hexa);
+      AddSecondBounds();
    }
 
    //real* check = new real[num_of_knots];
@@ -415,7 +418,6 @@ void FEM::CreateSLAE()
    //std::cout << check[11] << " " << b[11] << " " << check[11] - b[11] << "\n\n";
    //for (int i =0 ; i < num_of_knots; i++) std::cout << A->d[i] << "\n";
 
-   AddSecondBounds();
    AddFirstBounds();
 }
 
@@ -423,9 +425,9 @@ void FEM::CreateA(hexahedron* hexa)
 {
    for (int i = 0; i < 8; i++ )
       for (int j = 0; j < 8; j++ )
-         AddElement(A, hexa->knots_num, i, j, localG[i][j] + localM[i][j]);
-   //      localA[i][j] = localG[i][j] + localM[i][j];
-   //AddLocal(A, hexa->knots_num, localA, 1);
+         //AddElement(A, hexa->knots_num, i, j, localG[i][j] + localM[i][j]);
+         localA[i][j] = localG[i][j] + localM[i][j];
+   AddLocal(A, hexa->knots_num, localA, 1);
 }
 
 void FEM::CreateM(hexahedron* hexa)
@@ -513,7 +515,7 @@ void FEM::SolveSLAE( )
       }
       res = sqrt(scalar(r, r, num_of_knots)) / sqrt(scalar(b, b, num_of_knots));
    }
-   std::cout << "Residual: " << res << std::endl;
+   std::cout << "iter: " << k << " Residual: " << res << std::endl;
 }
 
 int FEM::mu(int index)
