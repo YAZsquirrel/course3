@@ -19,7 +19,7 @@ namespace filtration {
 		for (int i = 0; i < comps_num; i++)
 		{
 			component* comp = new component();
-			f_filtr >> comp->num >> comp->proportion;
+			f_filtr >> comp->num;
 
 			comps.push_back(comp);
 		}
@@ -36,6 +36,7 @@ namespace filtration {
 			int comp_num;
 			f_filtr >> heights[i] >> ph.oil_over_water >> ph.viscosity >> ph.penetrability;
 			ph.h = heights[i];
+			ph.compsInPhase.push_back(new component);
 			//ph.compsInPhase.push_back(); //comps[comp_num];
 			//for (int j = 0; j < comp_num; j++)
 			//{
