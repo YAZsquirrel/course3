@@ -282,6 +282,7 @@ namespace mesh_comps
       std::vector<int*> side_bound1;
       side_bound1.reserve(2 * (xn + yn - 2) * (zn - 1));
 
+      // add sides (I)
       for (int i = 0; i < well_inds[0]; i++)
          for (int j = i + 1; j < well_inds[0]; j++)
          {
@@ -302,10 +303,12 @@ namespace mesh_comps
       for (int i = 0; i < w_info.wells.size(); i++)
          size += lower_bound2_edges[i].size();
 
-      fbounds2 << w_info.wells.size() * size * (zn - 1) + plain_size * 2 << '\n';
+      fbounds2 << size * (zn - 1) + plain_size * 2 << '\n';
       real P_plast;
       fFP >> P_plast;
       fFP.close();
+
+      // add bottom layer (II)
       for (int i = 0; i < plain_size; i++)
       {
          fbounds2 << lower_faces[i][0] << " " 
@@ -329,16 +332,16 @@ namespace mesh_comps
                fhexas << lower_faces[i][j] + plain_knot_size * k << " ";
             fhexas << '\n';
 
-            if (k == zn - 1)
+         }
+         if (k == zn - 1)
+         {
+            for (int i = 0; i < plain_size; i++)
             {
-               for (int i = 0; i < plain_size; i++)
-               {
-                  fbounds2 << lower_faces[i][0] << " "
-                     << lower_faces[i][1] << " "
-                     << lower_faces[i][2] << " "
-                     << lower_faces[i][3] << " "
-                     << .0 << '\n';
-               }
+               fbounds2 << lower_faces[i][0] + plain_knot_size * k << " "
+                  << lower_faces[i][1] + plain_knot_size * k << " "
+                  << lower_faces[i][2] + plain_knot_size * k << " "
+                  << lower_faces[i][3] + plain_knot_size * k << " "
+                  << .0 << '\n';
             }
          }
 
